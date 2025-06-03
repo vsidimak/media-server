@@ -281,7 +281,7 @@ EOF
 # === STEP 7: Launch stacks ===
 echo "🚀 Launching stacks..."
 # docker compose -f "$SERVICES_DIR/infra.yml" up -d
-docker compose -f "$SERVICES_DIR/dl.yml" up -d
+docker compose -f "$SERVICES_DIR/download.yml" up -d
 docker compose -f "$SERVICES_DIR/media.yml" up -d
 
 # # === STEP 8: Add diagnostic validation script ===
