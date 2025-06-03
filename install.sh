@@ -152,7 +152,6 @@ services:
   jackett:
     image: linuxserver/jackett
     container_name: jackett
-    network_mode: "service:nordvpn"
     environment:
       - PUID=1000
       - PGID=1000
@@ -160,12 +159,13 @@ services:
     volumes:
       - $DATA_DIR/jackett:/config
       - $DATA_DIR/downloads/qbittorrent/complete:/downloads  # so you can test/search manually if needed
+    ports:
+      - "9117:9117"
     restart: unless-stopped
 
   radarr:
     image: linuxserver/radarr
     container_name: radarr
-    network_mode: "service:nordvpn"
     environment:
       - PUID=1000
       - PGID=1000
@@ -174,12 +174,13 @@ services:
       - $DATA_DIR/radarr:/config
       - $DATA_DIR/downloads/qbittorrent/complete:/downloads
       - $DATA_DIR/media/movies:/movies
+    ports:
+      - "7878:7878"
     restart: unless-stopped
 
   sonarr:
     image: linuxserver/sonarr
     container_name: sonarr
-    network_mode: "service:nordvpn"
     environment:
       - PUID=1000
       - PGID=1000
@@ -188,6 +189,8 @@ services:
       - $DATA_DIR/sonarr:/config
       - $DATA_DIR/downloads/qbittorrent/complete:/downloads
       - $DATA_DIR/media/series:/series
+    ports:
+      - "8989:8989"
     restart: unless-stopped
 EOF
 
