@@ -208,7 +208,7 @@ services:
       - $DATA_DIR/jellyfin:/config
       - $DATA_DIR/media/movies:/media/movies
       - $DATA_DIR/media/series:/media/series
-    devices:
+    # devices:
       # - /dev/dri:/dev/dri  # Optional: For Intel GPU HW transcoding
     restart: unless-stopped
 EOF
