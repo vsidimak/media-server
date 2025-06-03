@@ -115,7 +115,7 @@ services:
     restart: unless-stopped
 EOF
 
-# Downloader stack behind VPN (qBittorrent, Sonarr, Radarr, Jackett)
+# Downloader stack behind VPN (NordVPN, qBittorrent, Jackett)
 cat > "$SERVICES_DIR/download.yml" <<EOF
 version: '3.8'
 services:
@@ -124,14 +124,17 @@ services:
     container_name: nordvpn
     cap_add:
       - NET_ADMIN
+      - NET_RAW
     environment:
       - USER=$NORDVPN_USERNAME
       - PASS=$NORDVPN_PASSWORD
       - CONNECT=Spain
       - TECHNOLOGY=NordLynx
-      - NETWORK=192.168.178.0/24
+      - NETWORK=172.19.0.0/16
     volumes:
       - /dev/net/tun:/dev/net/tun
+    networks:
+      - media_net
     restart: unless-stopped
 
   qbittorrent:
@@ -152,6 +155,9 @@ services:
   jackett:
     image: linuxserver/jackett
     container_name: jackett
+    network_mode: "service:nordvpn"
+    depends_on:
+      - nordvpn
     environment:
       - PUID=1000
       - PGID=1000
@@ -162,7 +168,16 @@ services:
     ports:
       - "9117:9117"
     restart: unless-stopped
+    
+networks:
+  media_net:
+    external: true
+EOF
 
+# Media stack (Radarr, Sonarr, Jellyfin)
+cat > "$SERVICES_DIR/media.yml" <<EOF
+version: '3.8'
+services:
   radarr:
     image: linuxserver/radarr
     container_name: radarr
@@ -177,6 +192,8 @@ services:
     ports:
       - "7878:7878"
     restart: unless-stopped
+    networks:
+      - media_net
 
   sonarr:
     image: linuxserver/sonarr
@@ -192,13 +209,10 @@ services:
     ports:
       - "8989:8989"
     restart: unless-stopped
-EOF
+    networks:
+      - media_net
 
-# Media stack (Jellyfin)
-cat > "$SERVICES_DIR/media.yml" <<EOF
-version: '3.8'
-services:
- jellyfin:
+  jellyfin:
     image: jellyfin/jellyfin
     container_name: jellyfin
     ports:
@@ -214,6 +228,10 @@ services:
     # devices:
       # - /dev/dri:/dev/dri  # Optional: For Intel GPU HW transcoding
     restart: unless-stopped
+
+networks:
+  media_net:
+    external: true
 EOF
 
 
@@ -282,10 +300,10 @@ EOF
 # systemctl --user start manage_api.service
 
 # === STEP 7: Launch stacks ===
+echo "Creating docker network..."
+docker network create media_net
 echo "🚀 Launching stacks..."
-# docker compose -f "$SERVICES_DIR/infra.yml" up -d
-docker compose -f "$SERVICES_DIR/download.yml" up -d
-docker compose -f "$SERVICES_DIR/media.yml" up -d
+docker compose -f "$SERVICES_DIR/download.yml" -f "$SERVICES_DIR/media.yml" up -d
 
 # # === STEP 8: Add diagnostic validation script ===
 # echo "📋 Creating diagnostic script..."
@@ -318,6 +336,8 @@ docker compose -f "$SERVICES_DIR/media.yml" up -d
 # echo "✅ Diagnostic completed."
 # EOF
 # chmod +x "$PROJECT_DIR/validate.sh"
+
+
 
 # === STEP 9: Ask about diagnostic cron setup ===
 read -p "🔄 Enable diagnostics every 30 minutes? (y/n): " enable_diag

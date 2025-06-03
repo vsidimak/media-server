@@ -1,3 +1,5 @@
 .env
 bootstrap.sh
 install_brainstorm.sh
+.DS_Store
+media-server-key-pair.pem
