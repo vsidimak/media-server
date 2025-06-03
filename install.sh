@@ -65,7 +65,8 @@ sudo apt update && sudo apt upgrade -y
 echo "🐳 Installing Docker & Docker Compose..."
 sudo apt install -y docker.io docker-compose
 sudo systemctl enable docker --now
-sudo usermod -aG docker "$USER"
+# Below needed if need to run docker commands without sudo
+# sudo usermod -aG docker "$USER"
 
 # === STEP 3: Create directories ===
 echo "📁 Creating directories..."
