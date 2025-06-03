@@ -63,8 +63,17 @@ sudo apt update && sudo apt upgrade -y
 
 # === STEP 2: Install Docker & Docker Compose ===
 echo "🐳 Installing Docker & Docker Compose..."
-sudo apt install -y docker.io docker-compose
+# === STEP 2.1: Install Docker Engine ===
+sudo apt install -y docker.io
+
+# Enable and start Docker service
 sudo systemctl enable docker --now
+
+# === STEP 2.2: Install Docker Compose v2 (as plugin) ===
+sudo mkdir -p /usr/local/lib/docker/cli-plugins
+sudo curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 \
+  -o /usr/local/lib/docker/cli-plugins/docker-compose
+sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 # Below needed if need to run docker commands without sudo
 # sudo usermod -aG docker "$USER"
 
