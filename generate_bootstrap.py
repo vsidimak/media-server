@@ -1,6 +1,6 @@
 import os
 
-def generate_bootstrap_script(env_path, repo_url, install_dir="/opt/media-server"):
+def generate_bootstrap_script(env_path, repo_url, install_dir="/opt/media-server-install"):
     with open(env_path, 'r') as f:
         env_lines = [line.strip() for line in f if line.strip() and not line.startswith('#')]
 
@@ -31,7 +31,7 @@ chmod +x install.sh
 
 # === USAGE ===
 if __name__ == "__main__":
-    REPO_URL = "https://github.com/yourusername/media-server-setup.git"
+    REPO_URL = "https://github.com/vsidimak/media-server.git"
     ENV_PATH = ".env"  # your local env file
 
     bootstrap_script = generate_bootstrap_script(ENV_PATH, REPO_URL)
