@@ -31,9 +31,9 @@ DATA_DIR="$PROJECT_DIR/data"
 
 CONFIG_DIR="$PROJECT_DIR/config"
 SERVICES_DIR="$PROJECT_DIR/services"
-
+echo "🔍 Loading environment variables..."
 set -o allexport
-source "$ENV_FILE"
+source ".env"
 set +o allexport
 
 # --- Validate required environment variables ---

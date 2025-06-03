@@ -13,8 +13,11 @@ def generate_bootstrap_script(env_path, repo_url, install_dir="/opt/media-server
 sudo apt update && sudo apt install -y git
 
 # Clone repo
-git clone {repo_url} {install_dir}
+echo "Cloning repo..."
+mkdir -p {install_dir}
 cd {install_dir}
+git clone {repo_url} 
+cd media-server
 
 # Create .env file
 cat <<EOF > .env
