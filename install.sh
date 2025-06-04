@@ -236,68 +236,68 @@ EOF
 
 
 # === STEP 5: Install Flask and setup management API ===
-# echo "🌐 Installing Flask API for container control..."
-# sudo apt install -y python3-pip
-# pip3 install flask docker
+echo "🌐 Installing Flask API for container control..."
+sudo apt install -y python3-pip
+pip3 install flask docker
 
-# cat > "$PROJECT_DIR/manage_api.py" <<EOF
-# from flask import Flask, jsonify, request
-# import docker
-# import os
+cat > "$PROJECT_DIR/manage_api.py" <<EOF
+from flask import Flask, jsonify, request
+import docker
+import os
 
-# app = Flask(__name__)
-# client = docker.from_env()
+app = Flask(__name__)
+client = docker.from_env()
 
-# @app.route('/containers', methods=['GET'])
-# def list_containers():
-#     containers = client.containers.list(all=True)
-#     return jsonify([{c.name: c.status} for c in containers])
+@app.route('/containers', methods=['GET'])
+def list_containers():
+    containers = client.containers.list(all=True)
+    return jsonify([{c.name: c.status} for c in containers])
 
-# @app.route('/containers/<name>/start', methods=['POST'])
-# def start_container(name):
-#     client.containers.get(name).start()
-#     return jsonify({"status": "started", "container": name})
+@app.route('/containers/<name>/start', methods=['POST'])
+def start_container(name):
+    client.containers.get(name).start()
+    return jsonify({"status": "started", "container": name})
 
-# @app.route('/containers/<name>/stop', methods=['POST'])
-# def stop_container(name):
-#     client.containers.get(name).stop()
-#     return jsonify({"status": "stopped", "container": name})
+@app.route('/containers/<name>/stop', methods=['POST'])
+def stop_container(name):
+    client.containers.get(name).stop()
+    return jsonify({"status": "stopped", "container": name})
 
-# @app.route('/containers/<name>/restart', methods=['POST'])
-# def restart_container(name):
-#     client.containers.get(name).restart()
-#     return jsonify({"status": "restarted", "container": name})
+@app.route('/containers/<name>/restart', methods=['POST'])
+def restart_container(name):
+    client.containers.get(name).restart()
+    return jsonify({"status": "restarted", "container": name})
 
-# @app.route('/shutdown', methods=['POST'])
-# def shutdown_system():
-#     os.system('shutdown now')
-#     return jsonify({"status": "shutting down"})
+@app.route('/shutdown', methods=['POST'])
+def shutdown_system():
+    os.system('shutdown now')
+    return jsonify({"status": "shutting down"})
 
-# if __name__ == '__main__':
-#     app.run(host='0.0.0.0', port=5000)
-# EOF
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
+EOF
 
-# # === STEP 6: Create systemd service to auto-start Flask API ===
-# echo "🔁 Creating systemd service for Flask API..."
-# mkdir -p "$USER_HOME/.config/systemd/user"
-# cat > "$USER_HOME/.config/systemd/user/manage_api.service" <<EOF
-# [Unit]
-# Description=Flask Docker Management API
+# === STEP 6: Create systemd service to auto-start Flask API ===
+echo "🔁 Creating systemd service for Flask API..."
+mkdir -p "$USER_HOME/.config/systemd/user"
+cat > "$USER_HOME/.config/systemd/user/manage_api.service" <<EOF
+[Unit]
+Description=Flask Docker Management API
 
-# [Service]
-# ExecStart=/usr/bin/python3 $PROJECT_DIR/manage_api.py
-# WorkingDirectory=$PROJECT_DIR
-# Restart=always
-# Environment=PYTHONUNBUFFERED=1
+[Service]
+ExecStart=/usr/bin/python3 $PROJECT_DIR/manage_api.py
+WorkingDirectory=$PROJECT_DIR
+Restart=always
+Environment=PYTHONUNBUFFERED=1
 
-# [Install]
-# WantedBy=default.target
-# EOF
+[Install]
+WantedBy=default.target
+EOF
 
-# systemctl --user daemon-reexec
-# systemctl --user daemon-reload
-# systemctl --user enable manage_api.service
-# systemctl --user start manage_api.service
+systemctl --user daemon-reexec
+systemctl --user daemon-reload
+systemctl --user enable manage_api.service
+systemctl --user start manage_api.service
 
 # === STEP 7: Launch stacks ===
 echo "Creating docker network..."
@@ -339,21 +339,21 @@ docker compose -f "$SERVICES_DIR/download.yml" -f "$SERVICES_DIR/media.yml" up -
 
 
 
-# === STEP 9: Ask about diagnostic cron setup ===
-read -p "🔄 Enable diagnostics every 30 minutes? (y/n): " enable_diag
-if [[ "$enable_diag" == "y" ]]; then
-    (crontab -l 2>/dev/null; echo "*/30 * * * * $PROJECT_DIR/validate.sh >> $PROJECT_DIR/logs/diagnostic.log 2>&1") | crontab -
-    echo "✅ Diagnostics cron job installed."
-else
-    echo "⏭️ Skipping diagnostics cron job."
-fi
+# # === STEP 9: Ask about diagnostic cron setup ===
+# read -p "🔄 Enable diagnostics every 30 minutes? (y/n): " enable_diag
+# if [[ "$enable_diag" == "y" ]]; then
+#     (crontab -l 2>/dev/null; echo "*/30 * * * * $PROJECT_DIR/validate.sh >> $PROJECT_DIR/logs/diagnostic.log 2>&1") | crontab -
+#     echo "✅ Diagnostics cron job installed."
+# else
+#     echo "⏭️ Skipping diagnostics cron job."
+# fi
 
-# === STEP 10: Ask about restoring from backup ===
-read -p "♻️ Restore from existing config backup? (y/n): " do_restore
-if [[ "$do_restore" == "y" ]]; then
-    read -p "📁 Enter path to backup archive: " backup_path
-    "$BASE_DIR/restore.sh" "$backup_path"
-fi
+# # === STEP 10: Ask about restoring from backup ===
+# read -p "♻️ Restore from existing config backup? (y/n): " do_restore
+# if [[ "$do_restore" == "y" ]]; then
+#     read -p "📁 Enter path to backup archive: " backup_path
+#     "$BASE_DIR/restore.sh" "$backup_path"
+# fi
 
 # === STEP 11: Finished ===
 echo "✅ Server setup complete. Access services via LAN IP."
