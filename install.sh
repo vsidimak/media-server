@@ -29,9 +29,16 @@ DATA_DIR="$PROJECT_DIR/data"
 # $DATA_DIR/media/movies	Radarr (write), Jellyfin (read)
 # $DATA_DIR/media/series	Sonarr (write), Jellyfin (read)
 
+LOG_PREFIX="[media-server]"
+
+log() {
+  log "$LOG_PREFIX $@"
+}
+
+
 CONFIG_DIR="$PROJECT_DIR/config"
 SERVICES_DIR="$PROJECT_DIR/services"
-echo "🔍 Loading environment variables..."
+log "🔍 Loading environment variables..."
 set -o allexport
 source ".env"
 set +o allexport
@@ -42,27 +49,27 @@ REQUIRED_VARS=(
     NORDVPN_PASSWORD
 )
 # === STEP 1: Update & install system packages ===
-echo "🔍 Validating environment variables..."
+log "🔍 Validating environment variables..."
 missing_vars=0
 for var in "${REQUIRED_VARS[@]}"; do
   if [[ -z "${!var}" ]]; then
-    echo "❌ Missing: $var"
+    log "❌ Missing: $var"
     missing_vars=1
   fi
 done
 if [[ "$missing_vars" -eq 1 ]]; then
-    echo "❌ Aborting due to missing variables in .env"
+    log "❌ Aborting due to missing variables in .env"
     exit 1
 fi
 
-echo "✅ Environment validated."
+log "✅ Environment validated."
 
 # === STEP 1: Update & install system packages ===
-echo "🔧 Updating system..."
+log "🔧 Updating system..."
 sudo apt update && sudo apt upgrade -y
 
 # === STEP 2: Install Docker & Docker Compose ===
-echo "🐳 Installing Docker & Docker Compose..."
+log "🐳 Installing Docker & Docker Compose..."
 # === STEP 2.1: Install Docker Engine ===
 sudo apt install -y docker.io
 
@@ -78,11 +85,11 @@ sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 # sudo usermod -aG docker "$USER"
 
 # === STEP 3: Create directories ===
-echo "📁 Creating directories..."
+log "📁 Creating directories..."
 mkdir -p "$DATA_DIR" "$CONFIG_DIR" "$SERVICES_DIR"
 
 # === STEP 4: Write Compose files ===
-echo "📝 Writing docker-compose files..."
+log "📝 Writing docker-compose files..."
 
 # Infra (Pi-hole, Traefik)
 cat > "$SERVICES_DIR/infra.yml" <<EOF
@@ -236,7 +243,7 @@ EOF
 
 
 # === STEP 5: Install Flask and setup management API ===
-echo "🌐 Installing Flask API for container control..."
+log "🌐 Installing Flask API for container control..."
 sudo apt install -y python3-pip
 pip3 install flask docker
 
@@ -278,7 +285,7 @@ if __name__ == '__main__':
 EOF
 
 # === STEP 6: Create systemd service to auto-start Flask API (system-wide) ===
-echo "🔁 Creating systemd service for Flask API..."
+log "🔁 Creating systemd service for Flask API..."
 
 SERVICE_NAME="manage_api.service"
 SERVICE_PATH="/etc/systemd/system/$SERVICE_NAME"
@@ -304,40 +311,40 @@ systemctl daemon-reload
 systemctl enable --now "$SERVICE_NAME"
 
 # === STEP 7: Launch stacks ===
-echo "Creating docker network..."
+log "Creating docker network..."
 docker network create media_net
-echo "🚀 Launching stacks..."
+log "🚀 Launching stacks..."
 docker compose -f "$SERVICES_DIR/download.yml" -f "$SERVICES_DIR/media.yml" up -d
 
 # # === STEP 8: Add diagnostic validation script ===
-# echo "📋 Creating diagnostic script..."
+# log "📋 Creating diagnostic script..."
 # cat > "$PROJECT_DIR/validate.sh" <<EOF
 # #!/bin/bash
 
-# echo "=== System Diagnostic Check ==="
-# echo "Hostname: \$(hostname)"
-# echo "Date: \$(date)"
-# echo "Uptime: \$(uptime -p)"
-# echo
+# log "=== System Diagnostic Check ==="
+# log "Hostname: \$(hostname)"
+# log "Date: \$(date)"
+# log "Uptime: \$(uptime -p)"
+# log
 
 # # Docker checks
-# echo "Docker version: \$(docker --version)"
-# echo "Docker Compose version: \$(docker-compose --version)"
-# echo "Containers status:"
+# log "Docker version: \$(docker --version)"
+# log "Docker Compose version: \$(docker-compose --version)"
+# log "Containers status:"
 # docker ps -a --format "table {{.Names}}\t{{.Status}}"
-# echo
+# log
 
 # # Flask service check
-# echo -n "Flask API service status: "
-# systemctl --user is-active manage_api.service || echo "inactive"
-# echo
+# log -n "Flask API service status: "
+# systemctl --user is-active manage_api.service || log "inactive"
+# log
 
 # # Mounted volumes
-# echo "Mounted volumes:"
+# log "Mounted volumes:"
 # df -h | grep "media-server"
-# echo
+# log
 
-# echo "✅ Diagnostic completed."
+# log "✅ Diagnostic completed."
 # EOF
 # chmod +x "$PROJECT_DIR/validate.sh"
 
@@ -346,10 +353,10 @@ docker compose -f "$SERVICES_DIR/download.yml" -f "$SERVICES_DIR/media.yml" up -
 # # === STEP 9: Ask about diagnostic cron setup ===
 # read -p "🔄 Enable diagnostics every 30 minutes? (y/n): " enable_diag
 # if [[ "$enable_diag" == "y" ]]; then
-#     (crontab -l 2>/dev/null; echo "*/30 * * * * $PROJECT_DIR/validate.sh >> $PROJECT_DIR/logs/diagnostic.log 2>&1") | crontab -
-#     echo "✅ Diagnostics cron job installed."
+#     (crontab -l 2>/dev/null; log "*/30 * * * * $PROJECT_DIR/validate.sh >> $PROJECT_DIR/logs/diagnostic.log 2>&1") | crontab -
+#     log "✅ Diagnostics cron job installed."
 # else
-#     echo "⏭️ Skipping diagnostics cron job."
+#     log "⏭️ Skipping diagnostics cron job."
 # fi
 
 # # === STEP 10: Ask about restoring from backup ===
@@ -360,10 +367,10 @@ docker compose -f "$SERVICES_DIR/download.yml" -f "$SERVICES_DIR/media.yml" up -
 # fi
 
 # === STEP 11: Finished ===
-echo "✅ Server setup complete. Access services via LAN IP."
-echo "Flask API available on port 5000 for container control."
-echo "You may need to logout and login again for Docker permissions to apply."
-echo "Run ./validate.sh anytime to check system and container health."
+log "✅ Server setup complete. Access services via LAN IP."
+log "Flask API available on port 5000 for container control."
+log "You may need to logout and login again for Docker permissions to apply."
+log "Run ./validate.sh anytime to check system and container health."
 
 
 
