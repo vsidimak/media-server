@@ -277,27 +277,31 @@ if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
 EOF
 
-# === STEP 6: Create systemd service to auto-start Flask API ===
+# === STEP 6: Create systemd service to auto-start Flask API (system-wide) ===
 echo "🔁 Creating systemd service for Flask API..."
-mkdir -p "$USER_HOME/.config/systemd/user"
-cat > "$USER_HOME/.config/systemd/user/manage_api.service" <<EOF
+
+SERVICE_NAME="manage_api.service"
+SERVICE_PATH="/etc/systemd/system/$SERVICE_NAME"
+
+cat > "$SERVICE_PATH" <<EOF
 [Unit]
 Description=Flask Docker Management API
+After=network.target
 
 [Service]
 ExecStart=/usr/bin/python3 $PROJECT_DIR/manage_api.py
 WorkingDirectory=$PROJECT_DIR
 Restart=always
 Environment=PYTHONUNBUFFERED=1
+User=$USER
 
 [Install]
-WantedBy=default.target
+WantedBy=multi-user.target
 EOF
 
-systemctl --user daemon-reexec
-systemctl --user daemon-reload
-systemctl --user enable manage_api.service
-systemctl --user start manage_api.service
+# Reload systemd and enable the service
+systemctl daemon-reload
+systemctl enable --now "$SERVICE_NAME"
 
 # === STEP 7: Launch stacks ===
 echo "Creating docker network..."
