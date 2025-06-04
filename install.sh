@@ -45,8 +45,7 @@ set +o allexport
 
 # --- Validate required environment variables ---
 REQUIRED_VARS=(
-    NORDVPN_USERNAME
-    NORDVPN_PASSWORD
+    NORDVPN_TOKEN
 )
 # === STEP 1: Update & install system packages ===
 log "🔍 Validating environment variables..."
