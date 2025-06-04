@@ -87,6 +87,24 @@ sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 log "📁 Creating directories..."
 mkdir -p "$DATA_DIR" "$CONFIG_DIR" "$SERVICES_DIR"
 
+
+# === STEP: NordVPN ===
+sh <(curl -sSf https://downloads.nordcdn.com/apps/linux/install.sh)
+
+# Enable auto-connect on boot
+nordvpn set autoconnect enabled
+
+# Use NordLynx (faster, modern protocol)
+nordvpn set technology nordlynx
+
+# Whitelist local LAN access (for 192.168.0.0/16, e.g. 192.168.1.x)
+nordvpn whitelist add subnet 192.168.178.0/24
+nordvpn whitelist add subnet 77.109.102.145/32
+# Enable kill switch (blocks internet if VPN is down)
+nordvpn set killswitch enabled
+# login
+nordvpn login --token $NORDVPN_TOKEN
+
 # === STEP 4: Write Compose files ===
 log "📝 Writing docker-compose files..."
 
@@ -121,29 +139,46 @@ services:
     restart: unless-stopped
 EOF
 
+# Home assistant
+cat "$SERVICES_DIR/home.yml" <<EOF
+version: '3.8'
+services:
+  homeassistant:
+    container_name: homeassistant
+    image: ghcr.io/home-assistant/home-assistant:stable
+    volumes:
+      - ${DATA_DIR}/homeassistant:/config
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - TZ=Europe/Berlin
+    restart: unless-stopped
+    network_mode: host
+    privileged: true # Required for full hardware access (e.g., USB dongles)
+EOF
+
 # Downloader stack behind VPN (NordVPN, qBittorrent, Jackett)
 cat > "$SERVICES_DIR/download.yml" <<EOF
 version: '3.8'
 services:
-  nordlynx:
-    image: ghcr.io/bubuntux/nordlynx
-    hostname: nordlynx
-    container_name: nordlynx
-    cap_add:
-      - NET_ADMIN                             # required
-      - SYS_MODULE                            # maybe
-    environment:
-      - PRIVATE_KEY=$NORDVPN_PRIVATE_KEY                # required
-      - QUERY=filters\[servers_groups\]\[identifier\]=legacy_p2p
-      - NET_LOCAL=172.19.0.0/16
-      - TZ=Europe/Berlin
-    sysctls:
-      - net.ipv4.conf.all.src_valid_mark=1   # maybe
-      - net.ipv4.conf.all.rp_filter=2        # maybe; set reverse path filter to loose mode
-      - net.ipv6.conf.all.disable_ipv6=1
-    restart: unless-stopped
-    networks:
-      - media_net
+  # nordlynx:
+  #   image: ghcr.io/bubuntux/nordlynx
+  #   hostname: nordlynx
+  #   container_name: nordlynx
+  #   cap_add:
+  #     - NET_ADMIN                             # required
+  #     - SYS_MODULE                            # maybe
+  #   environment:
+  #     - PRIVATE_KEY=$NORDVPN_PRIVATE_KEY                # required
+  #     - QUERY=filters\[servers_groups\]\[identifier\]=legacy_p2p
+  #     - NET_LOCAL=172.19.0.0/16
+  #     - TZ=Europe/Berlin
+  #   sysctls:
+  #     - net.ipv4.conf.all.src_valid_mark=1   # maybe
+  #     - net.ipv4.conf.all.rp_filter=2        # maybe; set reverse path filter to loose mode
+  #     - net.ipv6.conf.all.disable_ipv6=1
+  #   restart: unless-stopped
+  #   networks:
+  #     - media_net
 
   # nordvpn:
   #   image: bubuntux/nordvpn
@@ -169,13 +204,15 @@ services:
   qbittorrent:
     image: linuxserver/qbittorrent
     container_name: qbittorrent
-    network_mode: "service:nordlynx"
-    depends_on:
-      - nordlynx
     environment:
       - PUID=1000
       - PGID=1000
       - WEBUI_PORT=8080
+      - TORRENTING_PORT=6881
+    ports:
+      - 8080:8080
+      - 6881:6881
+      - 6881:6881/udp
     volumes:
       - $DATA_DIR/qbittorrent:/config
       - $DATA_DIR/downloads/qbittorrent:/downloads
@@ -194,16 +231,25 @@ services:
     ports:
       - "9117:9117"
     restart: unless-stopped
-    
-networks:
-  media_net:
-    external: true
 EOF
 
 # Media stack (Radarr, Sonarr, Jellyfin)
 cat > "$SERVICES_DIR/media.yml" <<EOF
 version: '3.8'
 services:
+  overseerr:
+    image: sctx/overseerr:latest
+    container_name: overseerr
+    environment:
+      - LOG_LEVEL=debug
+      - TZ=Europe/Berlin
+      - PORT=5055 #optional
+    ports:
+      - 5055:5055
+    volumes:
+      - $DATA_DIR/overseerr:/app/config
+    restart: unless-stopped
+
   radarr:
     image: linuxserver/radarr
     container_name: radarr
@@ -218,8 +264,6 @@ services:
     ports:
       - "7878:7878"
     restart: unless-stopped
-    networks:
-      - media_net
 
   sonarr:
     image: linuxserver/sonarr
@@ -235,105 +279,116 @@ services:
     ports:
       - "8989:8989"
     restart: unless-stopped
-    networks:
-      - media_net
 
-  jellyfin:
-    image: jellyfin/jellyfin
-    container_name: jellyfin
-    ports:
-      - "8096:8096"
+  plex:
+    image: linuxserver/plex
+    container_name: plex
     environment:
       - PUID=1000
       - PGID=1000
-      - TZ=UTC
+      - VERSION=docker
+      - TZ=Europe/Berlin
+      # Optional: claim token for first-time setup, get from https://www.plex.tv/claim
+      # - PLEX_CLAIM=your_plex_claim_token
+    network_mode: host # Needed for DLNA, Chromecast, local discovery
     volumes:
-      - $DATA_DIR/jellyfin:/config
-      - $DATA_DIR/media/movies:/media/movies
-      - $DATA_DIR/media/series:/media/series
-    # devices:
-      # - /dev/dri:/dev/dri  # Optional: For Intel GPU HW transcoding
+      - ${DATA_DIR}/plex:/config
+      - ${DATA_DIR}/media/movies:/movies
+      - ${DATA_DIR}/media/series:/series
     restart: unless-stopped
 
-networks:
-  media_net:
-    external: true
+  # jellyfin:
+  #   image: jellyfin/jellyfin
+  #   container_name: jellyfin
+  #   ports:
+  #     - "8096:8096"
+  #   environment:
+  #     - PUID=1000
+  #     - PGID=1000
+  #     - TZ=UTC
+  #   volumes:
+  #     - $DATA_DIR/jellyfin:/config
+  #     - $DATA_DIR/media/movies:/media/movies
+  #     - $DATA_DIR/media/series:/media/series
+  #   # devices:
+  #     # - /dev/dri:/dev/dri  # Optional: For Intel GPU HW transcoding
+  #   restart: unless-stopped
 EOF
 
 
-# === STEP 5: Install Flask and setup management API ===
-log "🌐 Installing Flask API for container control..."
-sudo apt install -y python3-pip
-pip3 install flask docker
+# # === STEP 5: Install Flask and setup management API ===
+# log "🌐 Installing Flask API for container control..."
+# sudo apt install -y python3-pip
+# pip3 install flask docker
 
-cat > "$PROJECT_DIR/manage_api.py" <<EOF
-from flask import Flask, jsonify, request
-import docker
-import os
+# cat > "$PROJECT_DIR/manage_api.py" <<EOF
+# from flask import Flask, jsonify, request
+# import docker
+# import os
 
-app = Flask(__name__)
-client = docker.from_env()
+# app = Flask(__name__)
+# client = docker.from_env()
 
-@app.route('/containers', methods=['GET'])
-def list_containers():
-    containers = client.containers.list(all=True)
-    return jsonify([{c.name: c.status} for c in containers])
+# @app.route('/containers', methods=['GET'])
+# def list_containers():
+#     containers = client.containers.list(all=True)
+#     return jsonify([{c.name: c.status} for c in containers])
 
-@app.route('/containers/<name>/start', methods=['POST'])
-def start_container(name):
-    client.containers.get(name).start()
-    return jsonify({"status": "started", "container": name})
+# @app.route('/containers/<name>/start', methods=['POST'])
+# def start_container(name):
+#     client.containers.get(name).start()
+#     return jsonify({"status": "started", "container": name})
 
-@app.route('/containers/<name>/stop', methods=['POST'])
-def stop_container(name):
-    client.containers.get(name).stop()
-    return jsonify({"status": "stopped", "container": name})
+# @app.route('/containers/<name>/stop', methods=['POST'])
+# def stop_container(name):
+#     client.containers.get(name).stop()
+#     return jsonify({"status": "stopped", "container": name})
 
-@app.route('/containers/<name>/restart', methods=['POST'])
-def restart_container(name):
-    client.containers.get(name).restart()
-    return jsonify({"status": "restarted", "container": name})
+# @app.route('/containers/<name>/restart', methods=['POST'])
+# def restart_container(name):
+#     client.containers.get(name).restart()
+#     return jsonify({"status": "restarted", "container": name})
 
-@app.route('/shutdown', methods=['POST'])
-def shutdown_system():
-    os.system('shutdown now')
-    return jsonify({"status": "shutting down"})
+# @app.route('/shutdown', methods=['POST'])
+# def shutdown_system():
+#     os.system('shutdown now')
+#     return jsonify({"status": "shutting down"})
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
-EOF
+# if __name__ == '__main__':
+#     app.run(host='0.0.0.0', port=5000)
+# EOF
 
-# === STEP 6: Create systemd service to auto-start Flask API (system-wide) ===
-log "🔁 Creating systemd service for Flask API..."
+# # === STEP 6: Create systemd service to auto-start Flask API (system-wide) ===
+# log "🔁 Creating systemd service for Flask API..."
 
-SERVICE_NAME="manage_api.service"
-SERVICE_PATH="/etc/systemd/system/$SERVICE_NAME"
+# SERVICE_NAME="manage_api.service"
+# SERVICE_PATH="/etc/systemd/system/$SERVICE_NAME"
 
-cat > "$SERVICE_PATH" <<EOF
-[Unit]
-Description=Flask Docker Management API
-After=network.target
+# cat > "$SERVICE_PATH" <<EOF
+# [Unit]
+# Description=Flask Docker Management API
+# After=network.target
 
-[Service]
-ExecStart=/usr/bin/python3 $PROJECT_DIR/manage_api.py
-WorkingDirectory=$PROJECT_DIR
-Restart=always
-Environment=PYTHONUNBUFFERED=1
-User=$USER
+# [Service]
+# ExecStart=/usr/bin/python3 $PROJECT_DIR/manage_api.py
+# WorkingDirectory=$PROJECT_DIR
+# Restart=always
+# Environment=PYTHONUNBUFFERED=1
+# User=$USER
 
-[Install]
-WantedBy=multi-user.target
-EOF
+# [Install]
+# WantedBy=multi-user.target
+# EOF
 
-# Reload systemd and enable the service
-systemctl daemon-reload
-systemctl enable --now "$SERVICE_NAME"
+# # Reload systemd and enable the service
+# systemctl daemon-reload
+# systemctl enable --now "$SERVICE_NAME"
 
 # === STEP 7: Launch stacks ===
 log "Creating docker network..."
 docker network create media_net
 log "🚀 Launching stacks..."
-docker compose -f "$SERVICES_DIR/download.yml" -f "$SERVICES_DIR/media.yml" up -d
+docker compose -f "$SERVICES_DIR/download.yml" -f "$SERVICES_DIR/media.yml" -f "$SERVICES_DIR/home.yml" up -d
 
 # === STEP 8: Add diagnostic validation script ===
 log "📋 Creating diagnostic script..."
