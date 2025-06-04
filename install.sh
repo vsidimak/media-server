@@ -133,13 +133,16 @@ services:
       - NET_ADMIN
       - NET_RAW
     environment:
-      - USER=$NORDVPN_USERNAME
-      - PASS=$NORDVPN_PASSWORD
+      - TOKEN=$NORDVPN_TOKEN
       - CONNECT=Spain
       - TECHNOLOGY=NordLynx
       - NETWORK=172.19.0.0/16
     volumes:
       - /dev/net/tun:/dev/net/tun
+    devices:
+      - /dev/net/tun
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
     networks:
       - media_net
     restart: unless-stopped
@@ -162,7 +165,6 @@ services:
   jackett:
     image: linuxserver/jackett
     container_name: jackett
-    network_mode: "service:nordvpn"
     depends_on:
       - nordvpn
     environment:
@@ -316,37 +318,44 @@ docker network create media_net
 log "🚀 Launching stacks..."
 docker compose -f "$SERVICES_DIR/download.yml" -f "$SERVICES_DIR/media.yml" up -d
 
-# # === STEP 8: Add diagnostic validation script ===
-# log "📋 Creating diagnostic script..."
-# cat > "$PROJECT_DIR/validate.sh" <<EOF
-# #!/bin/bash
+# === STEP 8: Add diagnostic validation script ===
+log "📋 Creating diagnostic script..."
+cat > "$PROJECT_DIR/validate.sh" <<EOF
+#!/bin/bash
 
-# log "=== System Diagnostic Check ==="
-# log "Hostname: \$(hostname)"
-# log "Date: \$(date)"
-# log "Uptime: \$(uptime -p)"
-# log
+echo "=== System Diagnostic Check ==="
+echo "Hostname: $(hostname)"
+echo "Date: $(date)"
+echo "Uptime: $(uptime -p)"
+echo 
 
-# # Docker checks
-# log "Docker version: \$(docker --version)"
-# log "Docker Compose version: \$(docker-compose --version)"
-# log "Containers status:"
-# docker ps -a --format "table {{.Names}}\t{{.Status}}"
-# log
+# Docker checks
+echo "Docker version: $(docker --version)"
+if command -v docker-compose &>/dev/null; then
+  echo "Docker Compose version: $(docker-compose --version)"
+elif docker compose version &>/dev/null; then
+  echo "Docker Compose version: $(docker compose version)"
+else
+  echo "Docker Compose is not installed."
+fi
+echo 
+echo "Containers status:"
+docker ps -a --format "table {{.Names}}\t{{.Status}}"
+echo 
 
-# # Flask service check
-# log -n "Flask API service status: "
-# systemctl --user is-active manage_api.service || log "inactive"
-# log
+# Flask service check
+echo -n "Flask API service status: "
+systemctl is-active manage_api.service || echo "inactive"
+echo 
 
-# # Mounted volumes
-# log "Mounted volumes:"
-# df -h | grep "media-server"
-# log
+# Mounted volumes
+echo "Mounted volumes:"
+df -h | grep "media-server"
+echo 
 
-# log "✅ Diagnostic completed."
-# EOF
-# chmod +x "$PROJECT_DIR/validate.sh"
+echo "✅ Diagnostic completed."
+EOF
+chmod +x "$PROJECT_DIR/validate.sh"
 
 
 
