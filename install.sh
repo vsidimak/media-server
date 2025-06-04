@@ -32,7 +32,7 @@ DATA_DIR="$PROJECT_DIR/data"
 LOG_PREFIX="[media-server]"
 
 log() {
-  log "$LOG_PREFIX $@"
+  echo "$LOG_PREFIX $@"
 }
 
 
