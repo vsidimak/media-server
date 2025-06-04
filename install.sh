@@ -45,7 +45,7 @@ set +o allexport
 
 # --- Validate required environment variables ---
 REQUIRED_VARS=(
-    NORDVPN_TOKEN
+    NORDVPN_PRIVATE_KEY
 )
 # === STEP 1: Update & install system packages ===
 log "🔍 Validating environment variables..."
@@ -125,33 +125,53 @@ EOF
 cat > "$SERVICES_DIR/download.yml" <<EOF
 version: '3.8'
 services:
-  nordvpn:
-    image: bubuntux/nordvpn
-    container_name: nordvpn
+  nordlynx:
+    image: ghcr.io/bubuntux/nordlynx
+    hostname: nordlynx
+    container_name: nordlynx
     cap_add:
-      - NET_ADMIN
-      - NET_RAW
+      - NET_ADMIN                             # required
+      - SYS_MODULE                            # maybe
     environment:
-      - TOKEN=$NORDVPN_TOKEN
-      - CONNECT=Spain
-      - TECHNOLOGY=NordLynx
-      - NETWORK=172.19.0.0/16
-    volumes:
-      - /dev/net/tun:/dev/net/tun
-    devices:
-      - /dev/net/tun
+      - PRIVATE_KEY=$NORDVPN_PRIVATE_KEY                # required
+      - QUERY=filters\[servers_groups\]\[identifier\]=legacy_p2p
+      - NET_LOCAL=172.19.0.0/16
+      - TZ=Europe/Berlin
     sysctls:
-      - net.ipv4.conf.all.src_valid_mark=1
+      - net.ipv4.conf.all.src_valid_mark=1   # maybe
+      - net.ipv4.conf.all.rp_filter=2        # maybe; set reverse path filter to loose mode
+      - net.ipv6.conf.all.disable_ipv6=1
+    restart: unless-stopped
     networks:
       - media_net
-    restart: unless-stopped
+
+  # nordvpn:
+  #   image: bubuntux/nordvpn
+  #   container_name: nordvpn
+  #   cap_add:
+  #     - NET_ADMIN
+  #     - NET_RAW
+  #   environment:
+  #     - TOKEN=$NORDVPN_TOKEN
+  #     - CONNECT=Spain
+  #     - TECHNOLOGY=NordLynx
+  #     - NETWORK=172.19.0.0/16
+  #   volumes:
+  #     - /dev/net/tun:/dev/net/tun
+  #   devices:
+  #     - /dev/net/tun
+  #   sysctls:
+  #     - net.ipv4.conf.all.src_valid_mark=1
+  #   networks:
+  #     - media_net
+  #   restart: unless-stopped
 
   qbittorrent:
     image: linuxserver/qbittorrent
     container_name: qbittorrent
-    network_mode: "service:nordvpn"
+    network_mode: "service:nordlynx"
     depends_on:
-      - nordvpn
+      - nordlynx
     environment:
       - PUID=1000
       - PGID=1000
@@ -164,8 +184,6 @@ services:
   jackett:
     image: linuxserver/jackett
     container_name: jackett
-    depends_on:
-      - nordvpn
     environment:
       - PUID=1000
       - PGID=1000
