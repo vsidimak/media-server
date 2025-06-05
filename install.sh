@@ -71,6 +71,9 @@ log "✅ Environment validated."
 # === STEP 1: Update & install system packages ===
 log "🔧 Updating system..."
 sudo apt update && sudo apt upgrade -y
+# timeshift for system snapshots
+sudo apt install timeshift
+
 
 
 # Initial clean snapshot
