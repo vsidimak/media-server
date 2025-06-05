@@ -72,7 +72,7 @@ log "✅ Environment validated."
 log "🔧 Updating system..."
 sudo apt update && sudo apt upgrade -y
 # timeshift for system snapshots
-sudo apt install timeshift
+sudo apt install timeshift -y
 
 
 
