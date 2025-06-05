@@ -72,7 +72,7 @@ log "✅ Environment validated."
 log "🔧 Updating system..."
 sudo apt update && sudo apt upgrade -y
 # timeshift for system snapshots
-sudo apt install timeshift -y
+# sudo apt install timeshift -y
 
 
 
@@ -97,7 +97,7 @@ sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
 
 # Snapshot after installing docker
-create_snapshot "Installed Docker and Docker Compose"
+# create_snapshot "Installed Docker and Docker Compose"
 
 # === STEP 3: Create directories ===
 log "📁 Creating directories..."
