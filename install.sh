@@ -5,7 +5,8 @@ set -e
 
 # === CONFIGURATION ===
 USER_HOME="/home/$(whoami)"
-PROJECT_DIR="$USER_HOME/media-server"
+BASE_DIR="/srv"
+PROJECT_DIR="$BASE_DIR/media-server"
 DATA_DIR="$PROJECT_DIR/data"
 
 # $DATA_DIR/
@@ -363,7 +364,8 @@ EOF
 log "Creating docker network..."
 docker network create media_net
 log "🚀 Launching stacks..."
-docker compose -f "$SERVICES_DIR/download.yml" -f "$SERVICES_DIR/media.yml" -f "$SERVICES_DIR/home.yml" up -d
+docker compose -f "$SERVICES_DIR/download.yml" -f "$SERVICES_DIR/media.yml" up -d
+# docker compose -f "$SERVICES_DIR/download.yml" -f "$SERVICES_DIR/media.yml" -f "$SERVICES_DIR/home.yml" up -d
 
 # === STEP 8: Add diagnostic validation script ===
 log "📋 Creating diagnostic script..."
