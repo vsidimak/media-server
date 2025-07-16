@@ -78,7 +78,7 @@ sudo apt update && sudo apt upgrade -y
 
 
 # Initial clean snapshot
-create_snapshot "Clean system after install and update"
+# create_snapshot "Clean system after install and update"
 
 # === STEP 2: Install Docker & Docker Compose ===
 log "🐳 Installing Docker & Docker Compose..."
@@ -346,7 +346,7 @@ services:
   #   # devices:
   #     # - /dev/dri:/dev/dri  # Optional: For Intel GPU HW transcoding
   #   restart: unless-stopped
-  
+
 networks:
   media_net:
     external: true
