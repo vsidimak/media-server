@@ -313,22 +313,18 @@ services:
       - media_net
 
   plex:
-    image: linuxserver/plex
+    image: plexinc/pms-docker
     container_name: plex
     environment:
       - PUID=1000
       - PGID=1000
-      - VERSION=docker
       - TZ=Europe/Berlin
       # Optional: claim token for first-time setup, get from https://www.plex.tv/claim
-      # - PLEX_CLAIM=your_plex_claim_token
-    # network_mode: host # Needed for DLNA, Chromecast, local discovery
+    network_mode: host # Needed for DLNA, Chromecast, local discovery
     volumes:
       - ${DATA_DIR}/plex:/config
       - ${MEDIA_DIR}:/media_library
     restart: unless-stopped
-    networks:
-      - media_net
 
   # jellyfin:
   #   image: jellyfin/jellyfin
