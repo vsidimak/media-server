@@ -237,6 +237,10 @@ services:
       - $DATA_DIR/qbittorrent:/config
       - $DATA_DIR/downloads/qbittorrent:/downloads
     restart: unless-stopped
+
+networks:
+  media_net:
+    external: true
 EOF
 
 # *arr media stack (Radarr, Sonarr, Prowlass, Overseerr)
@@ -317,7 +321,7 @@ services:
       - TZ=Europe/Berlin
       # Optional: claim token for first-time setup, get from https://www.plex.tv/claim
       # - PLEX_CLAIM=your_plex_claim_token
-    network_mode: host # Needed for DLNA, Chromecast, local discovery
+    # network_mode: host # Needed for DLNA, Chromecast, local discovery
     volumes:
       - ${DATA_DIR}/plex:/config
       - ${DATA_DIR}/media/movies:/movies
@@ -342,6 +346,10 @@ services:
   #   # devices:
   #     # - /dev/dri:/dev/dri  # Optional: For Intel GPU HW transcoding
   #   restart: unless-stopped
+  
+networks:
+  media_net:
+    external: true
 EOF
 
 # Home Assistant
