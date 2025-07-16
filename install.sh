@@ -8,6 +8,7 @@ USER_HOME="/home/$(whoami)"
 BASE_DIR="/srv"
 PROJECT_DIR="$BASE_DIR/media-server"
 DATA_DIR="$PROJECT_DIR/data"
+MEDIA_DIR="/mnt/media-library"
 
 # $DATA_DIR/
 # ├── downloads/
@@ -194,6 +195,10 @@ services:
       - net.ipv4.conf.all.rp_filter=2        # maybe; set reverse path filter to loose mode
       - net.ipv6.conf.all.disable_ipv6=1
     restart: unless-stopped
+    ports:
+      - 8080:8080 #qbittorrent UI
+      - 6881:6881 #torrenting ports
+      - 6881:6881/udp
     networks:
       - media_net
 
@@ -229,10 +234,6 @@ services:
       - PGID=1000
       - WEBUI_PORT=8080
       - TORRENTING_PORT=6881
-    ports:
-      - 8080:8080
-      - 6881:6881
-      - 6881:6881/udp
     volumes:
       - $DATA_DIR/qbittorrent:/config
       - $DATA_DIR/downloads/qbittorrent:/downloads
@@ -324,8 +325,7 @@ services:
     # network_mode: host # Needed for DLNA, Chromecast, local discovery
     volumes:
       - ${DATA_DIR}/plex:/config
-      - ${DATA_DIR}/media/movies:/movies
-      - ${DATA_DIR}/media/series:/series
+      - ${MEDIA_DIR}:/media_library
     restart: unless-stopped
     networks:
       - media_net
