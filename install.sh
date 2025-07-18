@@ -157,23 +157,6 @@ services:
     restart: unless-stopped
 EOF
 
-# Home assistant
-cat "$SERVICES_DIR/home.yml" <<EOF
-version: '3.8'
-services:
-  homeassistant:
-    container_name: homeassistant
-    image: ghcr.io/home-assistant/home-assistant:stable
-    volumes:
-      - ${DATA_DIR}/homeassistant:/config
-      - /etc/localtime:/etc/localtime:ro
-    environment:
-      - TZ=Europe/Berlin
-    restart: unless-stopped
-    network_mode: host
-    privileged: true # Required for full hardware access (e.g., USB dongles)
-EOF
-
 # Downloader stack behind VPN (NordVPN, qBittorrent, Jackett)
 cat > "$SERVICES_DIR/download.yml" <<EOF
 version: '3.8'
@@ -202,27 +185,6 @@ services:
     networks:
       - media_net
 
-  # nordvpn:
-  #   image: bubuntux/nordvpn
-  #   container_name: nordvpn
-  #   cap_add:
-  #     - NET_ADMIN
-  #     - NET_RAW
-  #   environment:
-  #     - TOKEN=$NORDVPN_TOKEN
-  #     - CONNECT=Spain
-  #     - TECHNOLOGY=NordLynx
-  #     - NETWORK=172.19.0.0/16
-  #   volumes:
-  #     - /dev/net/tun:/dev/net/tun
-  #   devices:
-  #     - /dev/net/tun
-  #   sysctls:
-  #     - net.ipv4.conf.all.src_valid_mark=1
-  #   networks:
-  #     - media_net
-  #   restart: unless-stopped
-
   qbittorrent:
     image: linuxserver/qbittorrent
     container_name: qbittorrent
@@ -236,7 +198,7 @@ services:
       - TORRENTING_PORT=6881
     volumes:
       - $DATA_DIR/qbittorrent:/config
-      - $DATA_DIR/downloads/qbittorrent:/downloads
+      - $DATA_DIR/downloads:/downloads
     restart: unless-stopped
 
 networks:
@@ -287,8 +249,8 @@ services:
       - TZ=Europe/Berlin
     volumes:
       - $DATA_DIR/radarr:/config
-      - $DATA_DIR/downloads/qbittorrent/complete:/downloads
-      - $DATA_DIR/media/movies:/movies
+      - $DATA_DIR/downloads:/downloads
+      - $MEDIA_DIR:/media_library
     ports:
       - "7878:7878"
     restart: unless-stopped
@@ -304,8 +266,8 @@ services:
       - TZ=Europe/Berlin
     volumes:
       - $DATA_DIR/sonarr:/config
-      - $DATA_DIR/downloads/qbittorrent/complete:/downloads
-      - $DATA_DIR/media/series:/series
+      - $DATA_DIR/downloads:/downloads
+      - $MEDIA_DIR:/media_library
     ports:
       - "8989:8989"
     restart: unless-stopped
@@ -322,26 +284,26 @@ services:
       # Optional: claim token for first-time setup, get from https://www.plex.tv/claim
     network_mode: host # Needed for DLNA, Chromecast, local discovery
     volumes:
-      - ${DATA_DIR}/plex:/config
-      - ${MEDIA_DIR}:/media_library
+      - $DATA_DIR/plex:/config
+      - $MEDIA_DIR:/media_library
     restart: unless-stopped
 
-  # jellyfin:
-  #   image: jellyfin/jellyfin
-  #   container_name: jellyfin
-  #   ports:
-  #     - "8096:8096"
-  #   environment:
-  #     - PUID=1000
-  #     - PGID=1000
-  #     - TZ=Europe/Berlin
-  #   volumes:
-  #     - $DATA_DIR/jellyfin:/config
-  #     - $DATA_DIR/media/movies:/media/movies
-  #     - $DATA_DIR/media/series:/media/series
-  #   # devices:
-  #     # - /dev/dri:/dev/dri  # Optional: For Intel GPU HW transcoding
-  #   restart: unless-stopped
+  lazylibrarian:
+    image: linuxserver/lazylibrarian
+    container_name: lazylibrarian
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Brussels
+    volumes:
+      - $DATA_DIR/lazylibrarian:/config
+      - $MEDIA_DIR:/media_library           # Where books are stored
+      - $DATA_DIR/downloads:/downloads # Where torrents are downloaded
+    ports:
+      - 5299:5299
+    networks:
+      - media_net
+    restart: unless-stopped
 
 networks:
   media_net:
