@@ -210,17 +210,38 @@ EOF
 cat > "$SERVICES_DIR/media.yml" <<EOF
 version: '3.8'
 services:
-  overseerr:
-    image: sctx/overseerr:latest
-    container_name: overseerr
+  # overseerr:
+  #   image: sctx/overseerr:latest
+  #   container_name: overseerr
+  #   environment:
+  #     - LOG_LEVEL=debug
+  #     - TZ=Europe/Berlin
+  #     - PORT=5055 #optional
+  #   ports:
+  #     - 5055:5055
+  #   volumes:
+  #     - $DATA_DIR/overseerr:/app/config
+  #   restart: unless-stopped
+  #   networks:
+  #     - media_net
+
+  jellyseerr:
+    image: fallenbagel/jellyseerr:latest
+    container_name: jellyseerr
     environment:
-      - LOG_LEVEL=debug
+      - PUID=1000
+      - PGID=1000
       - TZ=Europe/Berlin
-      - PORT=5055 #optional
     ports:
       - 5055:5055
     volumes:
-      - $DATA_DIR/overseerr:/app/config
+      - $DATA_DIR/jellyseerr:/app/config
+    # healthcheck:
+    #   test: wget --no-verbose --tries=1 --spider http://localhost:5055/api/v1/status || exit 1
+    #   start_period: 20s
+    #   timeout: 3s
+    #   interval: 15s
+    #   retries: 3
     restart: unless-stopped
     networks:
       - media_net
@@ -250,7 +271,7 @@ services:
     volumes:
       - $DATA_DIR/radarr:/config
       - $DATA_DIR/downloads:/downloads
-      - $MEDIA_DIR:/media_library
+      - $MEDIA_DIR:/media-library
     ports:
       - "7878:7878"
     restart: unless-stopped
@@ -267,25 +288,38 @@ services:
     volumes:
       - $DATA_DIR/sonarr:/config
       - $DATA_DIR/downloads:/downloads
-      - $MEDIA_DIR:/media_library
+      - $MEDIA_DIR:/media-library
     ports:
       - "8989:8989"
     restart: unless-stopped
     networks:
       - media_net
 
-  plex:
-    image: plexinc/pms-docker
-    container_name: plex
+  # plex:
+  #   image: plexinc/pms-docker
+  #   container_name: plex
+  #   environment:
+  #     - PUID=1000
+  #     - PGID=1000
+  #     - TZ=Europe/Berlin
+  #     # Optional: claim token for first-time setup, get from https://www.plex.tv/claim
+  #   network_mode: host # Needed for DLNA, Chromecast, local discovery
+  #   volumes:
+  #     - $DATA_DIR/plex:/config
+  #     - $MEDIA_DIR:/media-library
+  #   restart: unless-stopped
+
+  jellyfin:
+    image: jellyfin/jellyfin
+    container_name: jellyfin
     environment:
       - PUID=1000
       - PGID=1000
       - TZ=Europe/Berlin
-      # Optional: claim token for first-time setup, get from https://www.plex.tv/claim
     network_mode: host # Needed for DLNA, Chromecast, local discovery
     volumes:
-      - $DATA_DIR/plex:/config
-      - $MEDIA_DIR:/media_library
+      - $DATA_DIR/jellyfin:/config
+      - $MEDIA_DIR:/media-library
     restart: unless-stopped
 
   lazylibrarian:
@@ -297,7 +331,7 @@ services:
       - TZ=Europe/Brussels
     volumes:
       - $DATA_DIR/lazylibrarian:/config
-      - $MEDIA_DIR:/media_library           # Where books are stored
+      - $MEDIA_DIR:/media-library           # Where books are stored
       - $DATA_DIR/downloads:/downloads # Where torrents are downloaded
     ports:
       - 5299:5299
